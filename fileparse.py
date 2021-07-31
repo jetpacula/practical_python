@@ -2,85 +2,77 @@
 #
 # Exercise 3.3
 import csv
+import io
 
 
 def parse_csv(
-    filename: str,
+    lines,
     select: list = None,
     types: list = None,
-    has_headers: bool = False,
+    has_headers: bool = True,
     delimiter: str = ",",
     silence_errors: bool = False,
 ) -> list:
     """
     Parse a CSV into a list of records
     """
+
+    if type(lines) not in [list,tuple,io.TextIOWrapper] and not silence_errors:
+        raise RuntimeError(f"can parse only list, tuple or file, not {type(lines)}")
+    if not type(lines) is list:
+        lines = lines.readlines()
+
     if select and not has_headers and not silence_errors:
         raise RuntimeError("select argument requires column headers")
-    with open(filename) as f:
-        rows = csv.reader(f, delimiter=delimiter)
-        for row in rows:
-            colnum = len(row)
-            break
+    colnum = len(lines[0])
+
+
 
     types_dict = {"name": str, "price": float, "shares": int}
-    with open(filename) as f:
-        rows = csv.reader(f, delimiter=delimiter)
-        # read the file headers
-        if has_headers:
+    # read the file headers
+    if has_headers:
 
-            headers = next(rows)
+        headers = lines[0].strip().split(delimiter)
 
-        if types:
-            types_sorted = [i for i in types]
-        elif not types and has_headers:
-            types_sorted = [types_dict[colname] for colname in headers]
+    if types:
+        types_sorted = [i for i in types]
+    elif not types and has_headers:
+        types_sorted = [types_dict[colname] for colname in headers]
+    else:
+        types_sorted = [str for _ in range(colnum)]
+    records = []
+    if has_headers:
+        if select:
+            indices = [headers.index(colname) for colname in select]
+            headers = select
         else:
-            # TODO skips first line          # types_sorted = [str for _ in range(len(next(rows)))]
-            types_sorted = [str for _ in range(colnum)]
-
-        if has_headers:
-
-            if select:
-                indices = [headers.index(colname) for colname in select]
-                headers = select
-
-            else:
-                indices = [headers.index(colname) for colname in headers]
-        records = []
-
-        for row in rows:
-
-            if not row:
-                continue
-            # filter the selected columns if specified
-
+            indices = [headers.index(colname) for colname in headers]
+        #print(i,l,'hello')
+        for line in lines:
+            line = line.strip().split(delimiter)
             if has_headers:
-                if indices:
-                    try:
-                        row = [types_sorted[index](row[index]) for index in indices]
-                    except ValueError as e:
-                        if not silence_errors:
+                has_headers=False
+                continue
+            
+            try:
+                line = [types_sorted[index](line[index]) for index in indices]
+            except ValueError as e:
+                if not silence_errors:
+                    print(e, f"Cant read line {line}")
+                continue
 
-                            print(e, f"Cant read row {row}")
-                        continue
-                record = dict(zip(headers, row))
-                records.append(record)
+            record = dict(zip(headers, line))
+            records.append(record)
+    else:
+        for line in lines:
+            if  len(line.split(delimiter))<2:
+                continue
+            line = line.strip().split(delimiter)
+            try:
+                line = tuple(types_sorted[index](line[index]) for index in range(len(line)))
+            except ValueError as e:
+                if not silence_errors:
+                    print(e, f"Cant read line {line}")
 
-            else:
-                # set_trace()
-                try:
-                    row = tuple(
-                        types_sorted[index](row[index]) for index in range(len(row))
-                    )
-                except ValueError as e:
-                    if not silence_errors:
-
-                        print(e, f"Cant read row {row}")
-                    continue
-
-                records.append(row)
-
-            # make a dictionary
-
+            records.append(line)
     return records
