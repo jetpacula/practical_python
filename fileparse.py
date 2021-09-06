@@ -67,7 +67,7 @@ def parse_csv(
         for line in lines:
             if  len(line.split(delimiter))<2:
                 continue
-            line = line.strip().split(delimiter)
+            line = line.replace('"','').strip('\n').split(delimiter)
             try:
                 line = tuple(types_sorted[index](line[index]) for index in range(len(line)))
             except ValueError as e:
